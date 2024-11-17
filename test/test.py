@@ -15,7 +15,7 @@ try:
     while True:
         if ser.in_waiting > 0:           # Check if there is data in the buffer
             line = ser.readline().decode('utf-8').strip()  # Read a line
-            print("Received:", line)     # Print the received data
+            print(line)     # Print the received data
 except KeyboardInterrupt:
     print("Stopping data read.")
 finally:

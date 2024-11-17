@@ -23,14 +23,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <math.h>
-
-#define BMP180_ADDRESS (0x77 << 1) // BMP180 I2C address
-#define TEMP_PRESSURE_REG 0xF6     // Register for raw data
-#define CONTROL_REG 0xF4           // Control register
-#define READ_TEMP_CMD 0x2E         // Command to read temperature
-#define READ_PRESS_CMD 0x34        // Command to read pressure
-
-#define MPU6050_ADDR 0x68
+#include <stdlib.h>
 
 I2C_HandleTypeDef hi2c1;
 I2C_HandleTypeDef hi2c2;
@@ -43,21 +36,11 @@ UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 UART_HandleTypeDef huart3;
 
-// BMP180 calibration data
-int16_t AC1, AC2, AC3, B1, B2, MB, MC, MD;
-uint16_t AC4, AC5, AC6;
-
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
-void readBMP180CalibrationData(void);
-int32_t readRawTemperature(void);
-int32_t readRawPressure(void);
-float calculateTemperature(int32_t UT);
-float calculatePressure(int32_t UP);
-int32_t BMP180_GetAlt(int32_t UP);
 
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
@@ -137,165 +120,16 @@ int main(void)
 
   // HAL_Delay(1000); // Delay for readability in output
   // }
-  MPU6050_Init();
+  // Initialize MPU6050
+  // MPU6050_Init();
+
   while (1)
   {
     // read the Accelerometer and Gyro values
-    MPU6050_Read_Accel();
-    MPU6050_Read_Gyro();
-    HAL_Delay(500); // Add delay to control data rate
+    // MPU6050_Read_Accel();
+    // MPU6050_Read_Gyro();
+    // HAL_Delay(1000);
   }
-}
-void MPU6050_Init(void)
-{
-  uint8_t check;
-  uint8_t Data;
-
-  HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x75, 1, &check, 1, 1000); // read WHO_AM_I
-  if (check == 0x68)                                                // 0x68 will be returned by the sensor if everything goes well
-  {
-    // power management register 0X6B we should write all 0's to wake the sensor up
-    Data = 0;
-    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, 0x6B, 1, &Data, 1, 1000);
-    // Set DATA RATE of 1KHz by writing SMPLRT_DIV register
-    Data = 0x07;
-    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, 0x19, 1, &Data, 1, 1000);
-    // Set accelerometer configuration in ACCEL_CONFIG Register
-    Data = 0x00; // XA_ST=0,YA_ST=0,ZA_ST=0, FS_SEL=0 -> ± 2g
-    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, 0x43, 1, &Data, 1, 1000);
-
-    // Set Gyroscopic configuration in GYRO_CONFIG Register
-    Data = 0x00; // XG_ST=0,YG_ST=0,ZG_ST=0, FS_SEL=0 -> ± 250 ̐/s
-    HAL_I2C_Mem_Write(&hi2c1, MPU6050_ADDR, 0x43, 1, &Data, 1, 1000);
-  }
-}
-void MPU6050_Read_Accel(void)
-{
-  uint8_t Rec_Data[6];
-
-  // Read 6 BYTES of data starting from ACCEL_XOUT_H (0x3B) register
-  HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x3B, 1, Rec_Data, 6, 1000);
-  int16_t Accel_X_RAW = (int16_t)(Rec_Data[0] << 8 | Rec_Data[1]);
-  int16_t Accel_Y_RAW = (int16_t)(Rec_Data[2] << 8 | Rec_Data[3]);
-  int16_t Accel_Z_RAW = (int16_t)(Rec_Data[4] << 8 | Rec_Data[5]);
-  int Ax = (float)Accel_X_RAW / 16384.0;
-  int Ay = (float)Accel_Y_RAW / 16384.0;
-  int Az = (float)Accel_Z_RAW / 16384.0;
-  // Use UART or another method to send data for debugging or further processing
-  char msg[128];
-  snprintf(msg, sizeof(msg), "Ax: %d, Ay: %d, Az: %d\r\n",
-           Ax, Ay, Az);
-  HAL_UART_Transmit(&huart1, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
-}
-
-void MPU6050_Read_Gyro(void)
-{
-  uint8_t Rec_Data[6];
-
-  // Read 6 BYTES of data starting from GYRO_XOUT_H register
-  HAL_I2C_Mem_Read(&hi2c1, MPU6050_ADDR, 0x43, 1, Rec_Data, 6, 1000);
-
-  int16_t Gyro_X_RAW = (Rec_Data[0] << 8 | Rec_Data[1]);
-  int16_t Gyro_Y_RAW = (Rec_Data[2] << 8 | Rec_Data[3]);
-  int16_t Gyro_Z_RAW = (Rec_Data[4] << 8 | Rec_Data[5]);
-  // Use UART or another method to send data for debugging or further processing
-  // char msg[128];
-  // snprintf(msg, sizeof(msg), "Gx: %d, Gy: %d, Gz: %d\r\n",Gyro_X_RAW, Gyro_Y_RAW, Gyro_Z_RAW);
-  // HAL_UART_Transmit(&huart1, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
-  // int Gx = (float)Gyro_X_RAW/131.0;
-  // int Gy = (float)Gyro_Y_RAW/131.0;
-  // int Gz = (float)Gyro_Z_RAW/131.0;
-}
-
-// Read BMP180 calibration data
-void readBMP180CalibrationData(void)
-{
-  uint8_t calib_data[22];
-  HAL_I2C_Mem_Read(&hi2c1, BMP180_ADDRESS, 0xAA, I2C_MEMADD_SIZE_8BIT, calib_data, 22, HAL_MAX_DELAY);
-
-  AC1 = (calib_data[0] << 8) | calib_data[1];
-  AC2 = (calib_data[2] << 8) | calib_data[3];
-  AC3 = (calib_data[4] << 8) | calib_data[5];
-  AC4 = (calib_data[6] << 8) | calib_data[7];
-  AC5 = (calib_data[8] << 8) | calib_data[9];
-  AC6 = (calib_data[10] << 8) | calib_data[11];
-  B1 = (calib_data[12] << 8) | calib_data[13];
-  B2 = (calib_data[14] << 8) | calib_data[15];
-  MB = (calib_data[16] << 8) | calib_data[17];
-  MC = (calib_data[18] << 8) | calib_data[19];
-  MD = (calib_data[20] << 8) | calib_data[21];
-}
-
-// Read raw temperature
-int32_t readRawTemperature(void)
-{
-  uint8_t temp_cmd = READ_TEMP_CMD;
-  uint8_t data[2];
-  HAL_I2C_Mem_Write(&hi2c1, BMP180_ADDRESS, CONTROL_REG, I2C_MEMADD_SIZE_8BIT, &temp_cmd, 1, HAL_MAX_DELAY);
-  HAL_Delay(5); // Wait for conversion
-  HAL_I2C_Mem_Read(&hi2c1, BMP180_ADDRESS, TEMP_PRESSURE_REG, I2C_MEMADD_SIZE_8BIT, data, 2, HAL_MAX_DELAY);
-  return (data[0] << 8) | data[1];
-}
-
-// Read raw pressure
-int32_t readRawPressure(void)
-{
-  uint8_t press_cmd = READ_PRESS_CMD + (3 << 6);
-  HAL_I2C_Mem_Write(&hi2c1, BMP180_ADDRESS, CONTROL_REG, I2C_MEMADD_SIZE_8BIT, &press_cmd, 1, HAL_MAX_DELAY);
-  HAL_Delay(26); // Wait for conversion
-  uint8_t data[3];
-  HAL_I2C_Mem_Read(&hi2c1, BMP180_ADDRESS, TEMP_PRESSURE_REG, I2C_MEMADD_SIZE_8BIT, data, 3, HAL_MAX_DELAY);
-  return ((data[0] << 16) | (data[1] << 8) | data[2]) >> (8 - 3);
-}
-
-float calculateTemperature(int32_t UT)
-{
-  int32_t X1 = ((UT - AC6) * AC5) >> 15;
-  int32_t X2 = (MC << 11) / (X1 + MD);
-  int32_t B5 = X1 + X2;
-  return ((B5 + 8) >> 4) / 10.0;
-}
-
-// Calculate true pressure in Pascals
-float calculatePressure(int32_t UP)
-{
-  int32_t X1, X2, X3, B3, B5, B6, p;
-  uint32_t B4, B7;
-
-  // Assuming previous calculation of B5 in calculateTemperature()
-  int32_t UT = readRawTemperature();
-  X1 = ((UT - AC6) * AC5) >> 15;
-  X2 = (MC << 11) / (X1 + MD);
-  B5 = X1 + X2;
-
-  B6 = B5 - 4000;
-  X1 = (B2 * (B6 * B6 >> 12)) >> 11;
-  X2 = AC2 * B6 >> 11;
-  X3 = X1 + X2;
-  B3 = (((AC1 * 4 + X3) << 3) + 2) >> 2;
-  X1 = AC3 * B6 >> 13;
-  X2 = (B1 * (B6 * B6 >> 12)) >> 16;
-  X3 = ((X1 + X2) + 2) >> 2;
-  B4 = AC4 * (uint32_t)(X3 + 32768) >> 15;
-  B7 = ((uint32_t)UP - B3) * (50000 >> 3);
-
-  if (B7 < 0x80000000)
-    p = (B7 * 2) / B4;
-  else
-    p = (B7 / B4) * 2;
-
-  X1 = (p >> 8) * (p >> 8);
-  X1 = (X1 * 3038) >> 16;
-  X2 = (-7357 * p) >> 16;
-
-  return p + ((X1 + X2 + 3791) >> 4);
-}
-
-#define atmPress 101325 // Pa
-
-int32_t BMP180_GetAlt(int32_t UP)
-{
-  return 44330 * (1 - pow(calculatePressure(UP) / atmPress, 0.19029495718));
 }
 
 /**
