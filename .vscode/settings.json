@@ -1,5 +1,10 @@
 {
   "files.associations": {
-    "stm32f3xx_hal_uart.h": "c"
+    "*.sqlbook": "sql",
+    "*.ndjson": "jsonl",
+    "*.dbclient-js": "javascript",
+    "stm32f3xx_hal_uart.h": "c",
+    "main.h": "c",
+    "stm32f3xx_hal.h": "c"
   }
 }

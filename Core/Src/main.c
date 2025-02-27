@@ -117,7 +117,7 @@ int main(void)
   // char msg[128];
   // snprintf(msg, sizeof(msg), "Temperature: %ld Pressure: %ld ALT: %ld\r\n", temperature, pressure, altitue);
   // HAL_UART_Transmit(&huart1, (uint8_t *)msg, strlen(msg), 100);
-
+  // HAL_UART_Receive();
   // HAL_Delay(1000); // Delay for readability in output
   // }
   // Initialize MPU6050

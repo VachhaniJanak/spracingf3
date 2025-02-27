@@ -1,0 +1,19 @@
+[Buildset]
+BuildItems=@Variant(\x00\x00\x00\t\x00\x00\x00\x00\x01\x00\x00\x00\x0b\x00\x00\x00\x00\x01\x00\x00\x00\x1e\x00f\x00i\x00r\x00m\x00w\x00a\x00r\x00e\x00_\x00v\x001\x00.\x000\x00.\x000)
+
+[CMake]
+Build Directory Count=1
+Current Build Directory Index-Host System=0
+
+[CMake][CMake Build Directory 0]
+Build Directory Path=/home/admins/Working-Directory/cortex/f303cc/firmware_v1.0.0
+Build Type=
+CMake Binary=/app/bin/cmake
+CMake Executable=/app/bin/cmake
+Environment Profile=
+Extra Arguments=
+Install Directory=/usr/local
+Runtime=Host System
+
+[Project]
+VersionControlSupport=kdevgit
